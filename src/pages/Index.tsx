@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { QRScanner } from '@/components/QRScanner';
 import { WifiResult } from '@/components/WifiResult';
+import { WifiQRGenerator } from '@/components/WifiQRGenerator';
 import { WifiInfo } from '@/lib/wifiParser';
 
 const Index = () => {
@@ -16,11 +17,14 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-4 flex items-center justify-center">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-md space-y-4">
         {scannedWifi ? (
           <WifiResult wifiInfo={scannedWifi} onBack={handleBack} />
         ) : (
-          <QRScanner onScanSuccess={handleScanSuccess} />
+          <>
+            <WifiQRGenerator />
+            <QRScanner onScanSuccess={handleScanSuccess} />
+          </>
         )}
       </div>
     </div>
