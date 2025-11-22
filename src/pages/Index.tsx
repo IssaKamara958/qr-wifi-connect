@@ -1,11 +1,27 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState } from 'react';
+import { QRScanner } from '@/components/QRScanner';
+import { WifiResult } from '@/components/WifiResult';
+import { WifiInfo } from '@/lib/wifiParser';
 
 const Index = () => {
+  const [scannedWifi, setScannedWifi] = useState<WifiInfo | null>(null);
+
+  const handleScanSuccess = (wifiInfo: WifiInfo) => {
+    setScannedWifi(wifiInfo);
+  };
+
+  const handleBack = () => {
+    setScannedWifi(null);
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-4 flex items-center justify-center">
+      <div className="w-full max-w-md">
+        {scannedWifi ? (
+          <WifiResult wifiInfo={scannedWifi} onBack={handleBack} />
+        ) : (
+          <QRScanner onScanSuccess={handleScanSuccess} />
+        )}
       </div>
     </div>
   );
