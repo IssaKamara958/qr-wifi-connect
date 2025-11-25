@@ -4,6 +4,10 @@
 
 This is a React application from Chackor Organisation that allows users to connect to a WiFi network by scanning a QR code.
 
+## Live Application
+
+You can access the live application here: [https://qr-wifi-connect-91748750-9ece3.web.app/](https://qr-wifi-connect-91748750-9ece3.web.app/)
+
 ## Project Description
 
 This application simplifies the process of connecting to a WiFi network. Instead of manually entering the network name (SSID) and password, users can simply scan a QR code that contains the WiFi credentials. The application will then automatically attempt to connect to the network.
