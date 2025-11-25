@@ -1,0 +1,21 @@
+{
+  "name": "WiFi QR Scanner - Chackor Organisation",
+  "short_name": "WiFi QR",
+  "description": "Scannez un QR code Wi-Fi et connectez-vous automatiquement au réseau. Une application par Chackor Organisation.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

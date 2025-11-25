@@ -1,22 +1,23 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.lovable.284f91e0c0d741a3bada8344c74460e1',
-  appName: 'WiFi QR Scanner',
+  // App ID valide pour Android et iOS (format reverse domain obligatoire)
+  appId: 'com.chackororganisation.qrwificonnect',
+  appName: 'Chackor Qr Code Wifi',
   webDir: 'dist',
-  server: {
-    url: 'https://284f91e0-c0d7-41a3-bada-8344c74460e1.lovableproject.com?forceHideBadge=true',
-    cleartext: true
-  },
+
+  // Permissions caméra (nécessaires pour le Barcode Scanner)
   plugins: {
+    // Plugin officiel @capacitor/camera (si tu l'utilises)
     Camera: {
       ios: {
-        NSCameraUsageDescription: 'Nous avons besoin de la caméra pour scanner les QR codes Wi-Fi'
+        NSCameraUsageDescription: 'Cette application a besoin d’accéder à la caméra pour scanner les QR codes Wi-Fi.'
       }
     },
+    // Plugin officiel ou MLKit (selon ce que tu utilises)
     BarcodeScanner: {
       ios: {
-        NSCameraUsageDescription: 'Nous avons besoin de la caméra pour scanner les QR codes Wi-Fi'
+        NSCameraUsageDescription: 'Cette application a besoin d’accéder à la caméra pour scanner les QR codes Wi-Fi.'
       }
     }
   }

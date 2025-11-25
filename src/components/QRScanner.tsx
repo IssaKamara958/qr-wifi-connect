@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { BarcodeScanner } from '@capacitor-community/barcode-scanner';
-import { Camera, ImagePlus, X } from 'lucide-react';
+import { BarcodeScanner, Barcode } from '@capacitor-mlkit/barcode-scanning';
+import { Camera, ImagePlus, X, ScanLine } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -17,105 +17,84 @@ export const QRScanner = ({ onScanSuccess }: QRScannerProps) => {
   const { toast } = useToast();
 
   useEffect(() => {
-    checkPermission();
-    
+    checkPermissions();
     return () => {
-      if (isScanning) {
-        stopScan();
-      }
+      stopScan();
     };
   }, []);
 
-  const checkPermission = async () => {
+  const checkPermissions = async () => {
     try {
-      const status = await BarcodeScanner.checkPermission({ force: false });
-      setHasPermission(status.granted);
+      const status = await BarcodeScanner.checkPermissions();
+      setHasPermission(status.camera === 'granted');
     } catch (error) {
       console.error('Erreur vérification permission:', error);
       setHasPermission(false);
     }
   };
 
-  const requestPermission = async () => {
+  const requestPermissions = async () => {
     try {
-      const status = await BarcodeScanner.checkPermission({ force: true });
-      setHasPermission(status.granted);
-      
-      if (!status.granted) {
-        toast({
-          title: "Permission refusée",
-          description: "Veuillez autoriser l'accès à la caméra dans les paramètres",
-          variant: "destructive"
-        });
+      const status = await BarcodeScanner.requestPermissions();
+      setHasPermission(status.camera === 'granted');
+      if (status.camera !== 'granted') {
+        toast({ title: "Permission refusée", description: "Veuillez autoriser l'accès à la caméra dans les paramètres", variant: "destructive" });
       }
     } catch (error) {
-      toast({
-        title: "Erreur",
-        description: "Impossible de demander la permission caméra",
-        variant: "destructive"
-      });
+      toast({ title: "Erreur", description: "Impossible de demander la permission caméra", variant: "destructive" });
     }
   };
 
   const startScan = async () => {
     if (hasPermission === false) {
-      await requestPermission();
+      await requestPermissions();
       return;
     }
+    
+    document.body.classList.add('scanner-active');
+    setIsScanning(true);
+
+    const listener = await BarcodeScanner.addListener(
+      'barcodesScanned',
+      async (event) => {
+        if (event.barcodes.length > 0) {
+          const barcode: Barcode = event.barcodes[0];
+
+          await listener.remove();
+          await stopScan();
+          
+          const qrData = barcode.displayValue;
+          if (isWifiQrCode(qrData)) {
+            const wifiInfo = parseWifiQr(qrData);
+            if (wifiInfo) {
+              onScanSuccess(wifiInfo);
+            } else {
+              toast({ title: "QR code invalide", description: "Le format du QR code Wi-Fi n'est pas reconnu", variant: "destructive" });
+            }
+          } else {
+            toast({ title: "Pas un QR code Wi-Fi", description: "Scannez un QR code contenant des informations Wi-Fi", variant: "destructive" });
+          }
+        }
+      },
+    );
 
     try {
-      // Préparer le scanner (rend le fond transparent)
-      await BarcodeScanner.prepare();
-      
-      setIsScanning(true);
-      document.body.classList.add('scanner-active');
-      
-      // Démarrer le scan
-      const result = await BarcodeScanner.startScan();
-      
-      if (result.hasContent) {
-        const qrData = result.content || '';
-        
-        if (isWifiQrCode(qrData)) {
-          const wifiInfo = parseWifiQr(qrData);
-          
-          if (wifiInfo) {
-            await stopScan();
-            onScanSuccess(wifiInfo);
-          } else {
-            toast({
-              title: "QR code invalide",
-              description: "Le format du QR code Wi-Fi n'est pas reconnu",
-              variant: "destructive"
-            });
-          }
-        } else {
-          toast({
-            title: "Pas un QR code Wi-Fi",
-            description: "Scannez un QR code contenant des informations Wi-Fi",
-            variant: "destructive"
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Erreur scan:', error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de démarrer le scanner",
-        variant: "destructive"
-      });
-      await stopScan();
+        await BarcodeScanner.startScan();
+    } catch(error) {
+        console.error('Erreur scan:', error);
+        await stopScan();
+        // TODO: find a better way to check for this error
+        // if (error.name !== 'SCAN_CANCELED') {
+        //     toast({ title: "Erreur de scan", description: "Impossible de démarrer le scanner. Essayez d'importer une image.", variant: "destructive" });
+        // }
     }
   };
 
   const stopScan = async () => {
-    try {
-      await BarcodeScanner.stopScan();
-      setIsScanning(false);
-      document.body.classList.remove('scanner-active');
-    } catch (error) {
-      console.error('Erreur arrêt scan:', error);
-    }
+    await BarcodeScanner.removeAllListeners();
+    await BarcodeScanner.stopScan();
+    document.body.classList.remove('scanner-active');
+    setIsScanning(false);
   };
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -123,129 +102,73 @@ export const QRScanner = ({ onScanSuccess }: QRScannerProps) => {
     if (!file) return;
 
     try {
-      // Utiliser html5-qrcode pour lire depuis une image
       const { Html5Qrcode } = await import('html5-qrcode');
       const html5QrCode = new Html5Qrcode("reader");
-      
       const qrData = await html5QrCode.scanFile(file, true);
-      
       if (isWifiQrCode(qrData)) {
         const wifiInfo = parseWifiQr(qrData);
-        
         if (wifiInfo) {
           onScanSuccess(wifiInfo);
         } else {
-          toast({
-            title: "QR code invalide",
-            description: "Le format du QR code Wi-Fi n'est pas reconnu",
-            variant: "destructive"
-          });
+          toast({ title: "QR code invalide", description: "Le format du QR code Wi-Fi n'est pas reconnu", variant: "destructive" });
         }
       } else {
-        toast({
-          title: "Pas un QR code Wi-Fi",
-          description: "L'image doit contenir un QR code Wi-Fi",
-          variant: "destructive"
-        });
+        toast({ title: "Pas un QR code Wi-Fi", description: "L'image doit contenir un QR code Wi-Fi", variant: "destructive" });
       }
     } catch (error) {
       console.error('Erreur lecture image:', error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de lire le QR code depuis l'image",
-        variant: "destructive"
-      });
+      toast({ title: "Erreur", description: "Impossible de lire le QR code depuis l'image", variant: "destructive" });
     }
   };
 
   if (isScanning) {
     return (
-      <div className="fixed inset-0 z-50 bg-black">
-        <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/80 to-transparent z-10">
-          <div className="flex items-center justify-between">
-            <h2 className="text-white text-xl font-semibold">Scannez le QR code Wi-Fi</h2>
-            <Button 
-              onClick={stopScan}
-              variant="ghost"
-              size="icon"
-              className="text-white hover:bg-white/20"
-            >
+      <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm">
+        <div className="absolute top-4 right-4 z-20">
+            <Button onClick={stopScan} variant="ghost" size="icon" className="text-white rounded-full bg-white/10 hover:bg-white/20">
               <X className="h-6 w-6" />
             </Button>
+        </div>
+        <div className="absolute inset-0 flex flex-col items-center justify-center p-8">
+          <div className="relative w-full max-w-xs aspect-square overflow-hidden rounded-2xl border-4 border-white/50 shadow-2xl shadow-primary/30">
+             <div className='absolute top-0 left-0 w-full h-full animate-scan-line bg-gradient-to-b from-primary/50 to-transparent'/>
           </div>
-        </div>
-        
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-64 h-64 border-4 border-primary rounded-lg" />
-        </div>
-        
-        <div className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-black/80 to-transparent">
-          <p className="text-white text-center text-sm">
-            Placez le QR code Wi-Fi dans le cadre
-          </p>
+          <p className="text-white text-lg font-semibold mt-8 text-center">Placez le QR code dans le cadre</p>
         </div>
       </div>
     );
   }
 
   return (
-    <Card className="p-6 space-y-4">
-      <div className="text-center space-y-2">
-        <h2 className="text-2xl font-bold text-foreground">Scanner un QR code Wi-Fi</h2>
-        <p className="text-muted-foreground">
-          Scannez ou importez une image contenant un QR code Wi-Fi
-        </p>
-      </div>
-
-      <div className="grid gap-3">
-        <Button 
-          onClick={startScan}
-          size="lg"
-          className="w-full h-16 text-lg"
-          disabled={hasPermission === false}
-        >
-          <Camera className="mr-2 h-6 w-6" />
+    <Card className="p-6 space-y-4 text-center bg-card/50 backdrop-blur-sm border-primary/10 shadow-lg shadow-primary/5">
+        <div className="flex flex-col items-center gap-2">
+          <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center shadow-inner shadow-primary/10">
+            <Camera className="w-7 h-7 text-primary" />
+          </div>
+          <h3 className="text-lg font-semibold text-foreground">Scanner un QR Code</h3>
+          <p className="text-sm text-muted-foreground">Utilisez votre caméra ou importez une image</p>
+        </div>
+      <div className="grid gap-3 pt-2">
+        <Button onClick={startScan} size="lg" className="w-full h-14 text-base" disabled={hasPermission === false && 'ontouchstart' in window}>
+          <Camera className="mr-2 h-5 w-5" />
           Scanner avec la caméra
         </Button>
-
         <div className="relative">
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleImageUpload}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-            id="image-upload"
-          />
-          <Button 
-            variant="outline"
-            size="lg"
-            className="w-full h-16 text-lg"
-            asChild
-          >
-            <label htmlFor="image-upload" className="cursor-pointer">
-              <ImagePlus className="mr-2 h-6 w-6" />
-              Choisir une image
+          <input type="file" accept="image/*" onChange={handleImageUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" id="image-upload"/>
+          <Button variant="secondary" size="lg" className="w-full h-14 text-base" asChild>
+            <label htmlFor="image-upload" className="cursor-pointer w-full flex items-center justify-center">
+              <ImagePlus className="mr-2 h-5 w-5" />
+              Importer une image
             </label>
           </Button>
         </div>
       </div>
-
-      {hasPermission === false && (
-        <div className="text-center p-4 bg-destructive/10 rounded-lg">
-          <p className="text-sm text-destructive-foreground">
-            Permission caméra refusée. Veuillez l'autoriser dans les paramètres.
-          </p>
-          <Button 
-            onClick={requestPermission}
-            variant="outline"
-            size="sm"
-            className="mt-2"
-          >
-            Demander la permission
-          </Button>
+      {hasPermission === false && 'ontouchstart' in window && (
+        <div className="text-center p-3 bg-destructive/10 rounded-lg text-sm text-destructive-foreground">
+          <p>L'accès à la caméra est refusé.</p>
+          <Button onClick={requestPermissions} variant="link" className="h-auto p-0 text-destructive-foreground underline">Réessayer</Button>
         </div>
       )}
-      
       <div id="reader" className="hidden"></div>
     </Card>
   );
