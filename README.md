@@ -29,11 +29,11 @@ This application simplifies the process of connecting to a WiFi network. Instead
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/your-username/chackor-qr-code-wifi.git
+    git clone https://github.com/IssaKamara958/qr-wifi-connect.git
     ```
 2.  **Navigate to the project directory:**
     ```bash
-    cd chackor-qr-code-wifi
+    cd qr-wifi-connect
     ```
 3.  **Install dependencies:**
     ```bash
